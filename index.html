@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LensAI — AI Food Photography for Restaurants</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --ember: #FF4D00;
+    --cream: #F5EDD6;
+    --deep: #0A0705;
+    --rich: #1A120A;
+    --copper: #B87333;
+    --smoke: rgba(245,237,214,0.06);
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; overflow-x: hidden; }
+
+  body {
+    background: var(--deep);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CUSTOM CURSOR */
+  .cursor {
+    position: fixed; width: 12px; height: 12px;
+    background: var(--gold); border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s, width 0.3s, height 0.3s, background 0.3s;
+    mix-blend-mode: difference;
+  }
+  .cursor-follower {
+    position: fixed; width: 40px; height: 40px;
+    border: 1px solid var(--gold-light); border-radius: 50%;
+    pointer-events: none; z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.15s ease-out, width 0.3s, height 0.3s;
+    opacity: 0.6;
+  }
+  body:hover .cursor { opacity: 1; }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; opacity: 0.5;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 24px 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(10,7,5,0.95), transparent);
+    backdrop-filter: blur(2px);
+  }
+  .nav-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; letter-spacing: 4px;
+    color: var(--gold);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--cream); }
+  .nav-links { display: flex; gap: 40px; list-style: none; }
+  .nav-links a {
+    color: var(--cream); text-decoration: none;
+    font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+    opacity: 0.7; transition: opacity 0.3s, color 0.3s;
+  }
+  .nav-links a:hover { opacity: 1; color: var(--gold); }
+  .nav-cta {
+    background: var(--gold); color: var(--deep);
+    padding: 12px 28px; border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: none; transition: background 0.3s, transform 0.2s;
+    text-decoration: none;
+  }
+  .nav-cta:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+  /* HERO */
+  #hero {
+    min-height: 100vh; display: flex; align-items: center;
+    position: relative; overflow: hidden;
+    padding: 120px 60px 80px;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 70% 50%, rgba(201,168,76,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 40% at 20% 80%, rgba(255,77,0,0.05) 0%, transparent 50%);
+  }
+
+  .hero-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+    max-width: 1400px; margin: 0 auto; width: 100%;
+    position: relative; z-index: 2;
+  }
+
+  .hero-text { }
+  .hero-eyebrow {
+    font-size: 11px; letter-spacing: 5px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: ''; width: 40px; height: 1px; background: var(--gold);
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(56px, 6vw, 96px);
+    font-weight: 300; line-height: 0.95;
+    letter-spacing: -1px;
+    margin-bottom: 32px;
+  }
+  .hero-title em { font-style: italic; color: var(--gold); }
+  .hero-title .line { display: block; overflow: hidden; }
+  .hero-title .line span {
+    display: block;
+    animation: slideUp 0.9s cubic-bezier(0.16,1,0.3,1) forwards;
+    opacity: 0; transform: translateY(100%);
+  }
+  .hero-title .line:nth-child(1) span { animation-delay: 0.1s; }
+  .hero-title .line:nth-child(2) span { animation-delay: 0.25s; }
+  .hero-title .line:nth-child(3) span { animation-delay: 0.4s; }
+
+  @keyframes slideUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-sub {
+    font-size: 16px; line-height: 1.7; opacity: 0.6;
+    max-width: 420px; margin-bottom: 48px;
+    animation: fadeIn 1s 0.7s forwards; opacity: 0;
+  }
+  @keyframes fadeIn { to { opacity: 0.6; } }
+
+  .hero-actions {
+    display: flex; gap: 20px; align-items: center;
+    animation: fadeInUp 1s 0.9s forwards; opacity: 0;
+  }
+  @keyframes fadeInUp { to { opacity: 1; transform: none; } }
+  .hero-actions { transform: translateY(20px); }
+
+  .btn-primary {
+    background: var(--gold); color: var(--deep);
+    padding: 18px 40px; border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: none; text-decoration: none;
+    display: inline-block;
+    transition: background 0.3s, transform 0.2s;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+  .btn-primary:hover { background: var(--gold-light); transform: translateY(-2px); }
+
+  .btn-ghost {
+    background: transparent; color: var(--cream);
+    padding: 18px 40px;
+    border: 1px solid rgba(245,237,214,0.3);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 400;
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: none; text-decoration: none;
+    display: inline-block;
+    transition: border-color 0.3s, color 0.3s, transform 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-2px); }
+
+  /* HERO IMAGE STACK */
+  .hero-visual {
+    position: relative; height: 600px;
+    animation: fadeInRight 1.2s 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+    opacity: 0; transform: translateX(60px);
+  }
+  @keyframes fadeInRight { to { opacity: 1; transform: translateX(0); } }
+
+  .img-card {
+    position: absolute; overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+    transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .img-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .img-card::after {
+    content: ''; position: absolute; inset: 0;
+    border: 1px solid rgba(201,168,76,0.2);
+  }
+
+  .card-1 { width: 380px; height: 480px; top: 0; left: 0; z-index: 3;
+    transform: rotate(-3deg); }
+  .card-2 { width: 280px; height: 360px; top: 60px; right: 0; z-index: 2;
+    transform: rotate(4deg); }
+  .card-3 { width: 220px; height: 280px; bottom: 0; left: 80px; z-index: 4;
+    transform: rotate(2deg); }
+
+  .hero-visual:hover .card-1 { transform: rotate(-1deg) translateY(-10px); }
+  .hero-visual:hover .card-2 { transform: rotate(2deg) translateY(5px); }
+  .hero-visual:hover .card-3 { transform: rotate(4deg) translateY(-15px); }
+
+  .gold-line {
+    position: absolute; background: var(--gold);
+    opacity: 0.4;
+  }
+  .gl-1 { width: 1px; height: 200px; top: -40px; left: 50%; }
+  .gl-2 { width: 200px; height: 1px; bottom: -40px; right: 0; }
+
+  /* STATS BAR */
+  .stats-bar {
+    background: var(--rich); border-top: 1px solid rgba(201,168,76,0.15);
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+    padding: 40px 60px;
+  }
+  .stats-inner {
+    max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px; color: var(--gold);
+    letter-spacing: 2px; line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-label {
+    font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  /* SECTION SHARED */
+  section { padding: 120px 60px; }
+  .section-inner { max-width: 1400px; margin: 0 auto; }
+  .section-tag {
+    font-size: 11px; letter-spacing: 5px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-tag::before { content: ''; width: 30px; height: 1px; background: var(--gold); }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 4vw, 64px);
+    font-weight: 300; line-height: 1.1;
+    margin-bottom: 24px;
+  }
+  .section-title em { font-style: italic; color: var(--gold); }
+
+  /* HOW IT WORKS */
+  #how { background: var(--rich); }
+  .steps-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 2px; margin-top: 80px;
+  }
+  .step {
+    background: var(--deep); padding: 60px 40px;
+    position: relative; overflow: hidden;
+    transition: background 0.4s;
+  }
+  .step::before {
+    content: ''; position: absolute;
+    inset: 0; background: linear-gradient(135deg, rgba(201,168,76,0.05), transparent);
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .step:hover { background: #110d08; }
+  .step:hover::before { opacity: 1; }
+
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 100px; color: rgba(201,168,76,0.08);
+    position: absolute; top: -20px; right: 20px;
+    line-height: 1; pointer-events: none;
+  }
+  .step-icon {
+    width: 56px; height: 56px; margin-bottom: 32px;
+    background: rgba(201,168,76,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  }
+  .step h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 400;
+    margin-bottom: 16px;
+  }
+  .step p { font-size: 14px; line-height: 1.7; opacity: 0.55; }
+
+  /* GALLERY */
+  #portfolio { background: var(--deep); }
+  .gallery-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 60px;
+  }
+  .gallery-filter {
+    display: flex; gap: 4px;
+  }
+  .filter-btn {
+    background: transparent; color: var(--cream);
+    border: 1px solid rgba(245,237,214,0.15);
+    padding: 10px 24px; cursor: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    background: var(--gold); color: var(--deep); border-color: var(--gold);
+  }
+
+  .gallery-masonry {
+    columns: 3; column-gap: 16px;
+  }
+  .gallery-item {
+    break-inside: avoid; margin-bottom: 16px;
+    overflow: hidden; position: relative;
+    cursor: none;
+  }
+  .gallery-item img, .gallery-item video {
+    width: 100%; display: block;
+    transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .gallery-item:hover img, .gallery-item:hover video { transform: scale(1.05); }
+  .gallery-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(10,7,5,0.9) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.4s;
+    display: flex; align-items: flex-end; padding: 24px;
+  }
+  .gallery-item:hover .gallery-overlay { opacity: 1; }
+  .gallery-overlay-text { }
+  .gallery-overlay-text h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 400; margin-bottom: 4px;
+  }
+  .gallery-overlay-text span {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--gold); opacity: 0.8;
+  }
+
+  /* VIDEO section */
+  .video-item video {
+    width: 100%; display: block;
+  }
+
+  /* BEFORE/AFTER */
+  #transform { background: var(--rich); }
+  .ba-container {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center;
+    margin-top: 80px;
+  }
+  .ba-slider {
+    position: relative; overflow: hidden;
+    height: 500px; cursor: ew-resize;
+  }
+  .ba-after, .ba-before {
+    position: absolute; inset: 0;
+  }
+  .ba-after img, .ba-before img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .ba-before {
+    clip-path: inset(0 50% 0 0);
+    transition: clip-path 0s;
+  }
+  .ba-divider {
+    position: absolute; top: 0; bottom: 0;
+    left: 50%; width: 2px; background: var(--gold);
+    z-index: 5; transform: translateX(-50%);
+  }
+  .ba-handle {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px; height: 48px;
+    background: var(--gold); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--deep); font-size: 16px; z-index: 6;
+    box-shadow: 0 0 0 4px rgba(201,168,76,0.3);
+    cursor: ew-resize;
+  }
+  .ba-label {
+    position: absolute; top: 20px;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    padding: 6px 16px;
+    background: rgba(10,7,5,0.8);
+    color: var(--cream); z-index: 7;
+  }
+  .label-before { left: 20px; }
+  .label-after { right: 20px; color: var(--gold); }
+
+  .ba-text h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px; font-weight: 300; margin-bottom: 24px;
+  }
+  .ba-text h3 em { font-style: italic; color: var(--gold); }
+  .ba-text p { font-size: 15px; line-height: 1.8; opacity: 0.6; margin-bottom: 32px; }
+  .ba-points { list-style: none; }
+  .ba-points li {
+    display: flex; gap: 16px; align-items: flex-start;
+    margin-bottom: 20px; font-size: 14px;
+  }
+  .ba-points li::before {
+    content: '→'; color: var(--gold); flex-shrink: 0;
+  }
+
+  /* PRICING */
+  #pricing { background: var(--deep); }
+  .pricing-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 2px; margin-top: 80px;
+  }
+  .price-card {
+    background: var(--rich); padding: 60px 40px;
+    position: relative; overflow: hidden;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .price-card.featured {
+    background: var(--gold);
+    color: var(--deep);
+  }
+  .price-card.featured .price-label,
+  .price-card.featured .price-sub,
+  .price-card.featured .price-item { color: var(--deep); }
+  .price-card.featured .price-item::before { color: var(--deep); }
+
+  .price-card:hover { transform: translateY(-8px); z-index: 5; }
+
+  .price-badge {
+    display: inline-block; font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; padding: 6px 16px;
+    border: 1px solid currentColor;
+    margin-bottom: 32px; opacity: 0.7;
+  }
+  .price-card.featured .price-badge { opacity: 1; border-color: var(--deep); }
+
+  .price-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px; letter-spacing: 3px;
+    margin-bottom: 8px;
+  }
+  .price-amount {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 72px; font-weight: 300; line-height: 1;
+    color: var(--gold); margin-bottom: 4px;
+  }
+  .price-card.featured .price-amount { color: var(--deep); }
+
+  .price-label { font-size: 12px; opacity: 0.6; margin-bottom: 40px; }
+  .price-divider { height: 1px; background: currentColor; opacity: 0.15; margin-bottom: 32px; }
+  .price-items { list-style: none; margin-bottom: 48px; }
+  .price-item {
+    display: flex; gap: 12px;
+    font-size: 14px; margin-bottom: 16px; opacity: 0.75;
+    line-height: 1.5;
+  }
+  .price-item::before { content: '✦'; color: var(--gold); font-size: 10px; margin-top: 3px; flex-shrink: 0; }
+
+  .price-cta {
+    width: 100%; padding: 16px;
+    background: transparent; color: currentColor;
+    border: 1px solid currentColor;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500; letter-spacing: 2px;
+    text-transform: uppercase; cursor: none;
+    transition: all 0.3s; display: block; text-align: center;
+    text-decoration: none;
+  }
+  .price-card:not(.featured) .price-cta:hover {
+    background: var(--gold); border-color: var(--gold); color: var(--deep);
+  }
+  .price-card.featured .price-cta {
+    background: var(--deep); color: var(--cream); border-color: var(--deep);
+  }
+  .price-card.featured .price-cta:hover { background: var(--rich); }
+
+  /* TESTIMONIALS */
+  #testimonials { background: var(--rich); overflow: hidden; }
+  .testi-track {
+    display: flex; gap: 32px;
+    animation: scrollLeft 30s linear infinite;
+    width: max-content; margin-top: 80px;
+  }
+  @keyframes scrollLeft {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .testi-card {
+    background: var(--deep); padding: 48px; width: 400px;
+    flex-shrink: 0; position: relative;
+    border-left: 2px solid rgba(201,168,76,0.3);
+  }
+  .testi-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 300; font-style: italic;
+    line-height: 1.6; margin-bottom: 32px; opacity: 0.85;
+  }
+  .testi-author { display: flex; gap: 16px; align-items: center; }
+  .testi-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(201,168,76,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .testi-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .testi-rest { font-size: 12px; opacity: 0.5; letter-spacing: 1px; }
+  .testi-stars { color: var(--gold); font-size: 12px; margin-bottom: 20px; }
+
+  /* CTA SECTION */
+  #cta {
+    background: linear-gradient(135deg, var(--deep) 0%, var(--rich) 50%, var(--deep) 100%);
+    text-align: center; padding: 160px 60px;
+    position: relative; overflow: hidden;
+  }
+  #cta::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(201,168,76,0.07), transparent);
+  }
+  .cta-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(48px, 6vw, 100px);
+    font-weight: 300; line-height: 0.95;
+    margin-bottom: 40px; position: relative;
+  }
+  .cta-title em { font-style: italic; color: var(--gold); }
+  .cta-sub { font-size: 16px; opacity: 0.5; margin-bottom: 60px; letter-spacing: 1px; }
+
+  /* CONTACT FORM */
+  #contact { background: var(--deep); }
+  .contact-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 120px; align-items: start;
+    margin-top: 80px;
+  }
+  .contact-info h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px; font-weight: 300; margin-bottom: 24px;
+  }
+  .contact-info p { opacity: 0.55; font-size: 15px; line-height: 1.8; margin-bottom: 48px; }
+  .contact-detail { display: flex; gap: 16px; margin-bottom: 24px; font-size: 14px; }
+  .contact-detail-icon { color: var(--gold); font-size: 16px; }
+
+  .contact-form { }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 11px; letter-spacing: 3px;
+    text-transform: uppercase; opacity: 0.5; margin-bottom: 10px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%; background: var(--rich);
+    border: 1px solid rgba(245,237,214,0.1);
+    color: var(--cream); padding: 16px 20px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    outline: none; transition: border-color 0.3s;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color: var(--gold); }
+  .form-group select option { background: var(--rich); }
+  .form-group textarea { min-height: 120px; resize: vertical; }
+  .form-submit {
+    width: 100%; padding: 20px;
+    background: var(--gold); color: var(--deep);
+    border: none; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500; letter-spacing: 2px;
+    text-transform: uppercase; cursor: none;
+    transition: background 0.3s, transform 0.2s;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+  .form-submit:hover { background: var(--gold-light); transform: translateY(-2px); }
+
+  /* FOOTER */
+  footer {
+    background: var(--rich); padding: 60px;
+    border-top: 1px solid rgba(201,168,76,0.1);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; letter-spacing: 4px; color: var(--gold);
+  }
+  .footer-logo span { color: var(--cream); }
+  .footer-text { font-size: 12px; opacity: 0.4; letter-spacing: 1px; }
+  .footer-links { display: flex; gap: 32px; }
+  .footer-links a {
+    font-size: 12px; color: var(--cream); text-decoration: none;
+    opacity: 0.4; letter-spacing: 2px; text-transform: uppercase;
+    transition: opacity 0.3s;
+  }
+  .footer-links a:hover { opacity: 1; color: var(--gold); }
+
+  /* FLOATING ELEMENTS */
+  .float-dot {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,168,76,0.3), transparent);
+    animation: floatAround var(--dur) ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes floatAround {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(var(--dx), var(--dy)) scale(1.1); }
+    66% { transform: translate(calc(var(--dx) * -0.5), calc(var(--dy) * 0.7)) scale(0.9); }
+  }
+
+  /* 3D TILT CARDS */
+  .tilt-card { transform-style: preserve-3d; }
+
+  /* SCROLL REVEAL */
+  .reveal {
+    opacity: 0; transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+
+  /* MOBILE NAV TOGGLE */
+  @media (max-width: 900px) {
+    nav { padding: 20px 24px; }
+    .nav-links, .nav-cta { display: none; }
+    .hero-grid { grid-template-columns: 1fr; gap: 60px; }
+    #hero { padding: 100px 24px 60px; }
+    .hero-visual { display: none; }
+    section { padding: 80px 24px; }
+    nav { padding: 20px 24px; }
+    .steps-grid, .pricing-grid { grid-template-columns: 1fr; }
+    .gallery-masonry { columns: 2; }
+    .ba-container, .contact-grid { grid-template-columns: 1fr; gap: 60px; }
+    footer { flex-direction: column; gap: 24px; text-align: center; }
+    .stats-inner { grid-template-columns: repeat(2,1fr); }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-follower" id="cursorFollower"></div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#hero">LENS<span>AI</span></a>
+  <ul class="nav-links">
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#portfolio">Portfolio</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Get Started</a>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+
+  <!-- Floating dots -->
+  <div class="float-dot" style="width:300px;height:300px;top:10%;left:-5%;--dur:12s;--dx:30px;--dy:40px;opacity:0.3;"></div>
+  <div class="float-dot" style="width:200px;height:200px;bottom:20%;right:10%;--dur:16s;--dx:-40px;--dy:-30px;opacity:0.2;"></div>
+
+  <div class="hero-grid">
+    <div class="hero-text">
+      <div class="hero-eyebrow">AI Food Photography</div>
+      <h1 class="hero-title">
+        <span class="line"><span>Transform</span></span>
+        <span class="line"><span>Any Photo Into</span></span>
+        <span class="line"><span><em>Studio Gold</em></span></span>
+      </h1>
+      <p class="hero-sub">
+        Upload a photo or just type the dish name — our AI creates mouth-watering, studio-quality images that drive orders on Zomato, Swiggy & your menu.
+      </p>
+      <div class="hero-actions">
+        <a href="#pricing" class="btn-primary">View Pricing</a>
+        <a href="#portfolio" class="btn-ghost">See Portfolio</a>
+      </div>
+    </div>
+
+    <div class="hero-visual" id="heroVisual">
+      <div class="gold-line gl-1"></div>
+      <div class="gold-line gl-2"></div>
+      
+      <div class="img-card card-1">
+        <!-- <img src="../media/ChatGPT_Image_May_8__2026__08_42_42_PM.png" alt="Hariyali Chicken"> -->
+        <img src="../media/ChatGPT_Image_May_8__2026__09_01_52_PM.png" alt="RasaMalai">
+      </div>
+      <div class="img-card card-2">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_03_21_PM.png" alt="Jalebi">
+      </div>
+      <div class="img-card card-3">
+        <img src="../media/ChatGPT_Image_May_8__2026__08_53_56_PM.png" alt="Croissant">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat reveal">
+      <div class="stat-num" data-count="340">0</div>
+      <div class="stat-label">Avg. Order Increase %</div>
+    </div>
+    <div class="stat reveal reveal-delay-1">
+      <div class="stat-num" data-count="500">0</div>
+      <div class="stat-label">Restaurants Served</div>
+    </div>
+    <div class="stat reveal reveal-delay-2">
+      <div class="stat-num" data-count="24">0</div>
+      <div class="stat-label">Hour Delivery</div>
+    </div>
+    <div class="stat reveal reveal-delay-3">
+      <div class="stat-num" data-count="98">0</div>
+      <div class="stat-label">Client Satisfaction %</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-inner">
+    <div class="section-tag">Process</div>
+    <h2 class="section-title">Three steps to <em>irresistible</em> food photos</h2>
+    <p style="opacity:0.5;max-width:500px;font-size:15px;line-height:1.7;">No fancy equipment. No food styling team. Just your phone, a name, or a basic photo.</p>
+
+    <div class="steps-grid">
+      <div class="step reveal tilt-card">
+        <div class="step-num">01</div>
+        <div class="step-icon">📷</div>
+        <h3>Upload or Name</h3>
+        <p>Send us a photo of your dish on any plate — or simply tell us the dish name. Our AI knows hundreds of Indian & global dishes by heart.</p>
+      </div>
+      <div class="step reveal reveal-delay-1 tilt-card">
+        <div class="step-num">02</div>
+        <div class="step-icon">✨</div>
+        <h3>AI Transformation</h3>
+        <p>Our fine-tuned models relight, replate, recompose and enhance your dish into a professional studio photograph — in under 24 hours.</p>
+      </div>
+      <div class="step reveal reveal-delay-2 tilt-card">
+        <div class="step-num">03</div>
+        <div class="step-icon">🚀</div>
+        <h3>Upload & Watch Orders Soar</h3>
+        <p>Deploy on Zomato, Swiggy, or your own menu. Restaurants using our images see up to 3× more clicks and higher conversion rates.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PORTFOLIO -->
+<section id="portfolio">
+  <div class="section-inner">
+    <div class="gallery-header">
+      <div>
+        <div class="section-tag">Portfolio</div>
+        <h2 class="section-title">Our <em>finest</em> work</h2>
+      </div>
+      <div class="gallery-filter">
+        <button class="filter-btn active">All</button>
+        <button class="filter-btn">Stills</button>
+        <button class="filter-btn">Videos</button>
+        <button class="filter-btn">Desserts</button>
+      </div>
+    </div>
+
+    <div class="gallery-masonry" id="galleryMasonry">
+      <div class="gallery-item reveal">
+        <img src="../media/ChatGPT_Image_May_8__2026__08_42_42_PM.png" alt="Hariyali Chicken">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Hariyali Chicken</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal reveal-delay-1">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_03_21_PM.png" alt="Jalebi">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Saffron Jalebi</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal reveal-delay-2">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_26_03_PM.png" alt="Pani Puri">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Pani Puri Platter</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_01_52_PM.png" alt="Rasmalai">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Royal Rasmalai</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal reveal-delay-1">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_27_48_PM.png" alt="Manchurian">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Gobi Manchurian</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal reveal-delay-2">
+        <img src="../media/ChatGPT_Image_May_8__2026__09_37_00_PM.png" alt="Bhel Puri">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Mumbai Bhel Puri</h4>
+            <span>AI Still Photography</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item reveal">
+        <img src="../media/ChatGPT_Image_May_8__2026__08_53_56_PM.png" alt="Croissant">
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Almond Croissant & Hot Chocolate</h4>
+            <span>Café Specialty Shoot</span>
+          </div>
+        </div>
+      </div>
+      <!-- VIDEO ITEMS -->
+      <div class="gallery-item video-item reveal reveal-delay-1">
+        <video autoplay muted loop playsinline>
+          <source src="../media/Hyper-realistic_cinematic_slow_Seedance_20_Fast_02365.mp4" type="video/mp4">
+        </video>
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Cinematic Food Reel</h4>
+            <span>AI Video Production</span>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-item video-item reveal reveal-delay-2">
+        <video autoplay muted loop playsinline>
+          <source src="../media/Hyper-realistic_slow_motion_fo_Seedance_20_Fast_06268.mp4" type="video/mp4">
+        </video>
+        <div class="gallery-overlay">
+          <div class="gallery-overlay-text">
+            <h4>Slow Motion Sizzle Reel</h4>
+            <span>AI Video Production</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BEFORE / AFTER -->
+<section id="transform">
+  <div class="section-inner">
+    <div class="ba-container">
+      <div>
+        <div class="section-tag">Transformation</div>
+        <h2 class="section-title">From <em>ordinary</em> to order-generating</h2>
+        <p style="opacity:0.5;font-size:15px;line-height:1.7;margin-bottom:32px;">
+          A simple phone photo becomes a studio masterpiece. Drag the slider to see the magic — this is exactly what your Zomato & Swiggy listings could look like.
+        </p>
+
+        <ul class="ba-points">
+          <li>Proper studio lighting and depth of field added by AI</li>
+          <li>Premium plating and garnishing enhanced or regenerated</li>
+          <li>Background, atmosphere, and props styled for your cuisine</li>
+          <li>Output optimised for Zomato, Swiggy, Instagram & print menus</li>
+        </ul>
+      </div>
+
+      <div class="ba-slider" id="baSlider">
+        <div class="ba-after">
+          <img src="../media/after.png" alt="After AI">
+        </div>
+        <div class="ba-before" id="baBefore">
+          <img src="../media/before.png" alt="Before AI">
+        </div>
+        <div class="ba-divider" id="baDivider">
+          <div class="ba-handle">⇔</div>
+        </div>
+        <div class="ba-label label-before">BEFORE</div>
+        <div class="ba-label label-after">AFTER AI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-inner">
+    <div class="section-tag">Pricing</div>
+    <h2 class="section-title reveal">Simple, <em>transparent</em> pricing</h2>
+    <p class="reveal" style="opacity:0.5;font-size:15px;max-width:500px;line-height:1.7;">
+      Pay per image or video. No subscriptions unless you want one. Prices in INR, GST applicable.
+    </p>
+
+    <div class="pricing-grid">
+      <!-- STARTER -->
+      <div class="price-card reveal tilt-card">
+        <div class="price-badge">Starter</div>
+        <div class="price-name">Starter Pack</div>
+        <div class="price-amount">₹999</div>
+        <div class="price-label">per 5 images</div>
+        <div class="price-divider"></div>
+        <ul class="price-items">
+          <li class="price-item">5 AI-transformed food photos</li>
+          <li class="price-item">1 dish name or photo per image</li>
+          <li class="price-item">Zomato & Swiggy optimised resolution</li>
+          <li class="price-item">48-hour delivery</li>
+          <li class="price-item">1 revision per image</li>
+        </ul>
+        <a href="#contact" class="price-cta">Order Now</a>
+      </div>
+
+      <!-- GROWTH (FEATURED) -->
+      <div class="price-card featured reveal reveal-delay-1 tilt-card">
+        <div class="price-badge">Most Popular</div>
+        <div class="price-name">Growth Pack</div>
+        <div class="price-amount">₹3,499</div>
+        <div class="price-label">per 20 images + 1 video</div>
+        <div class="price-divider"></div>
+        <ul class="price-items">
+          <li class="price-item">20 AI food photographs</li>
+          <li class="price-item">1 cinematic sizzle video (15–30 sec)</li>
+          <li class="price-item">Full menu coverage for small restaurant</li>
+          <li class="price-item">24-hour express delivery</li>
+          <li class="price-item">3 revisions per image, 2 per video</li>
+          <li class="price-item">Instagram-ready square & portrait crops</li>
+        </ul>
+        <a href="#contact" class="price-cta">Order Now</a>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="price-card reveal reveal-delay-2 tilt-card">
+        <div class="price-badge">Premium</div>
+        <div class="price-name">Full Menu</div>
+        <div class="price-amount">₹7,999</div>
+        <div class="price-label">50 images + 3 videos</div>
+        <div class="price-divider"></div>
+        <ul class="price-items">
+          <li class="price-item">50 studio-quality food images</li>
+          <li class="price-item">3 cinematic reels (30–60 sec each)</li>
+          <li class="price-item">Custom brand palette & styling</li>
+          <li class="price-item">Priority 12-hour delivery</li>
+          <li class="price-item">Unlimited revisions</li>
+          <li class="price-item">Zomato menu upload support included</li>
+          <li class="price-item">WhatsApp content calendar for 1 month</li>
+        </ul>
+        <a href="#contact" class="price-cta">Order Now</a>
+      </div>
+    </div>
+
+    <!-- ADD-ONS -->
+    <div style="margin-top:60px;padding:40px;background:var(--rich);border-left:2px solid var(--gold);" class="reveal">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:20px;">Add-ons Available</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);">₹199 / image</div>
+          <div style="font-size:13px;opacity:0.6;margin-top:6px;">Additional images beyond your pack</div>
+        </div>
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);">₹799 / video</div>
+          <div style="font-size:13px;opacity:0.6;margin-top:6px;">Extra 15–30 sec sizzle reel</div>
+        </div>
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);">₹2,499 / month</div>
+          <div style="font-size:13px;opacity:0.6;margin-top:6px;">Monthly retainer — 10 images/mo + WhatsApp creatives</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials" style="padding-bottom:120px;overflow:hidden;">
+  <div class="section-inner">
+    <div class="section-tag">Reviews</div>
+    <h2 class="section-title reveal">What restaurant owners <em>say</em></h2>
+  </div>
+
+  <div style="overflow:hidden;margin-top:0;">
+    <div class="testi-track" id="testiTrack">
+      <!-- Duplicated for infinite loop -->
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"Our Zomato orders went up 280% in the first month after using LensAI images. The biryani photos look like they came from a Michelin-star restaurant."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍽</div>
+          <div>
+            <div class="testi-name">Rahul Sharma</div>
+            <div class="testi-rest">Spice Garden, Bengaluru</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"I just typed 'butter chicken' and got a photo that looks 10× better than anything I could shoot myself. Worth every rupee."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🥘</div>
+          <div>
+            <div class="testi-name">Priya Menon</div>
+            <div class="testi-rest">The Kerala Kitchen, Hyderabad</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"Swiggy actually reached out to feature us in their 'Best in City' section after we updated our menu photos. Incredible ROI."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍜</div>
+          <div>
+            <div class="testi-name">Arjun Kapoor</div>
+            <div class="testi-rest">Noodle House, Mumbai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"The 24-hour turnaround is unreal. I submitted photos at 10 PM and had studio-quality images ready for my lunch menu update the next morning."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🧆</div>
+          <div>
+            <div class="testi-name">Fatima Sheikh</div>
+            <div class="testi-rest">Al-Bahar Biryani, Chennai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"I run a small cloud kitchen with no budget for photographers. LensAI made us look like a premium brand at a fraction of the cost."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍱</div>
+          <div>
+            <div class="testi-name">Vikram Nair</div>
+            <div class="testi-rest">TiffinBox Cloud Kitchen, Pune</div>
+          </div>
+        </div>
+      </div>
+      <!-- Duplicate for seamless loop -->
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"Our Zomato orders went up 280% in the first month after using LensAI images. The biryani photos look like they came from a Michelin-star restaurant."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍽</div>
+          <div>
+            <div class="testi-name">Rahul Sharma</div>
+            <div class="testi-rest">Spice Garden, Bengaluru</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"I just typed 'butter chicken' and got a photo that looks 10× better than anything I could shoot myself. Worth every rupee."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🥘</div>
+          <div>
+            <div class="testi-name">Priya Menon</div>
+            <div class="testi-rest">The Kerala Kitchen, Hyderabad</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"Swiggy actually reached out to feature us in their 'Best in City' section after we updated our menu photos. Incredible ROI."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍜</div>
+          <div>
+            <div class="testi-name">Arjun Kapoor</div>
+            <div class="testi-rest">Noodle House, Mumbai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"The 24-hour turnaround is unreal. I submitted photos at 10 PM and had studio-quality images ready for my lunch menu update the next morning."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🧆</div>
+          <div>
+            <div class="testi-name">Fatima Sheikh</div>
+            <div class="testi-rest">Al-Bahar Biryani, Chennai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-quote">"I run a small cloud kitchen with no budget for photographers. LensAI made us look like a premium brand at a fraction of the cost."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">🍱</div>
+          <div>
+            <div class="testi-name">Vikram Nair</div>
+            <div class="testi-rest">TiffinBox Cloud Kitchen, Pune</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section id="cta">
+  <div style="position:relative;z-index:2;">
+    <h2 class="cta-title reveal">
+      Your menu deserves<br><em>to be seen.</em>
+    </h2>
+    <p class="cta-sub reveal reveal-delay-1">
+      Upload a photo or name a dish — get stunning AI food photography in 24 hours.
+    </p>
+    <div style="display:flex;gap:20px;justify-content:center;" class="reveal reveal-delay-2">
+      <a href="#contact" class="btn-primary">Start Your Order</a>
+      <a href="https://wa.me/919999999999?text=Hi%2C%20I%27m%20interested%20in%20AI%20food%20photography%20for%20my%20restaurant" class="btn-ghost" target="_blank">Chat on WhatsApp</a>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-inner">
+    <div class="contact-grid">
+      <div class="contact-info">
+        <div class="section-tag">Get In Touch</div>
+        <h3>Let's make your<br><em style="font-style:italic;color:var(--gold);">food irresistible</em></h3>
+        <p>Tell us about your restaurant and what you need. We'll respond within 2 hours during business hours (10 AM – 8 PM IST).</p>
+        <div class="contact-detail">
+          <span class="contact-detail-icon">📧</span>
+          <span>hello@lensai.in</span>
+        </div>
+        <div class="contact-detail">
+          <span class="contact-detail-icon">📱</span>
+          <span>+91 99999 99999 (WhatsApp preferred)</span>
+        </div>
+        <div class="contact-detail">
+          <span class="contact-detail-icon">📍</span>
+          <span>Serving all of India — remotely, instantly.</span>
+        </div>
+        <div class="contact-detail">
+          <span class="contact-detail-icon">⏱</span>
+          <span>Turnaround: 12–48 hours</span>
+        </div>
+      </div>
+
+      <form class="contact-form" onsubmit="handleSubmit(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" placeholder="Rahul Sharma" required>
+          </div>
+          <div class="form-group">
+            <label>Restaurant Name</label>
+            <input type="text" placeholder="Spice Garden" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>WhatsApp Number</label>
+            <input type="tel" placeholder="+91 98765 43210" required>
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" placeholder="Bengaluru" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>I'm interested in</label>
+          <select required>
+            <option value="">Select a package</option>
+            <option>Starter Pack — ₹999 (5 images)</option>
+            <option>Growth Pack — ₹3,499 (20 images + 1 video)</option>
+            <option>Full Menu — ₹7,999 (50 images + 3 videos)</option>
+            <option>Custom / Monthly Retainer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tell us about your restaurant & dishes</label>
+          <textarea placeholder="E.g. North Indian restaurant in Bengaluru. I need photos of butter chicken, biryani, paneer tikka, and our desserts..."></textarea>
+        </div>
+        <button type="submit" class="form-submit">Send My Request →</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">LENS<span>AI</span></div>
+  <div class="footer-text">© 2026 LensAI · AI Food Photography for Indian Restaurants</div>
+  <div class="footer-links">
+    <a href="#how">Process</a>
+    <a href="#portfolio">Work</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#contact">Contact</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<script>
+// CURSOR
+const cursor = document.getElementById('cursor');
+const follower = document.getElementById('cursorFollower');
+let mx = 0, my = 0, fx = 0, fy = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px';
+  cursor.style.top = my + 'px';
+});
+
+function animateCursor() {
+  fx += (mx - fx) * 0.12;
+  fy += (my - fy) *.12;
+  follower.style.left = fx + 'px';
+  follower.style.top = fy + 'px';
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+document.querySelectorAll('a, button, .gallery-item, .img-card').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.width = '20px';
+    cursor.style.height = '20px';
+    follower.style.width = '60px';
+    follower.style.height = '60px';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.width = '12px';
+    cursor.style.height = '12px';
+    follower.style.width = '40px';
+    follower.style.height = '40px';
+  });
+});
+
+// SCROLL REVEAL
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // COUNT-UP animation
+      const num = entry.target.querySelector('[data-count]');
+      if (num && !num.dataset.animated) {
+        num.dataset.animated = true;
+        countUp(num, parseInt(num.dataset.count));
+      }
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+document.querySelectorAll('.stat').forEach(el => observer.observe(el));
+
+function countUp(el, target) {
+  let start = 0;
+  const dur = 2000;
+  const step = (timestamp) => {
+    if (!start) start = timestamp;
+    const progress = Math.min((timestamp - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.floor(eased * target) + (target >= 100 ? '' : '');
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target + (el.dataset.count == 340 || el.dataset.count == 98 ? '%' : '+');
+  };
+  requestAnimationFrame(step);
+}
+
+// BEFORE / AFTER SLIDER
+const baSlider = document.getElementById('baSlider');
+const baBefore = document.getElementById('baBefore');
+const baDivider = document.getElementById('baDivider');
+let isDragging = false;
+
+function updateSlider(x) {
+  const rect = baSlider.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+  baBefore.style.clipPath = `inset(0 ${(1 - pct) * 100}% 0 0)`;
+  baDivider.style.left = (pct * 100) + '%';
+}
+
+baSlider.addEventListener('mousedown', e => { isDragging = true; updateSlider(e.clientX); });
+baSlider.addEventListener('touchstart', e => { isDragging = true; updateSlider(e.touches[0].clientX); });
+document.addEventListener('mousemove', e => { if (isDragging) updateSlider(e.clientX); });
+document.addEventListener('touchmove', e => { if (isDragging) updateSlider(e.touches[0].clientX); });
+document.addEventListener('mouseup', () => isDragging = false);
+document.addEventListener('touchend', () => isDragging = false);
+
+// Animate slider on load
+let autoPos = 0.5;
+let autoDir = -1;
+function autoSlide() {
+  if (!isDragging) {
+    autoPos += autoDir * 0.003;
+    if (autoPos <= 0.15) autoDir = 1;
+    if (autoPos >= 0.85) autoDir = -1;
+    baBefore.style.clipPath = `inset(0 ${(1 - autoPos) * 100}% 0 0)`;
+    baDivider.style.left = (autoPos * 100) + '%';
+  }
+  requestAnimationFrame(autoSlide);
+}
+autoSlide();
+
+// 3D TILT
+document.querySelectorAll('.tilt-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    card.style.transform = `perspective(600px) rotateY(${dx * 8}deg) rotateX(${-dy * 8}deg) translateZ(10px)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(600px) rotateY(0deg) rotateX(0deg) translateZ(0)';
+    card.style.transition = 'transform 0.5s ease';
+  });
+  card.addEventListener('mouseenter', () => {
+    card.style.transition = 'none';
+  });
+});
+
+// HERO PARALLAX
+window.addEventListener('scroll', () => {
+  const scrollY = window.scrollY;
+  const heroVisual = document.getElementById('heroVisual');
+  if (heroVisual) {
+    heroVisual.style.transform = `translateY(${scrollY * 0.15}px)`;
+  }
+});
+
+// GALLERY FILTER
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// EMAILJS INITIALIZATION
+emailjs.init({ publicKey: 'X19PtNAtQyJRWmU0c' });
+
+// FORM SUBMIT
+function handleSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector('.form-submit');
+  
+  // Get form data
+  const formData = {
+    name: form.querySelector('input[placeholder="Rahul Sharma"]').value,
+    restaurant: form.querySelector('input[placeholder="Spice Garden"]').value,
+    whatsapp: form.querySelector('input[placeholder="+91 98765 43210"]').value,
+    city: form.querySelector('input[placeholder="Bengaluru"]').value,
+    package: form.querySelector('select').value,
+    message: form.querySelector('textarea').value
+  };
+
+  // Disable button during send
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  // Send via EmailJS
+  emailjs.send('service_jzxr1ka', 'template_4cvqqpu', {
+    to_email: 'lens.ai.ags@gmail.com',
+    from_name: formData.name,
+    restaurant_name: formData.restaurant,
+    whatsapp: formData.whatsapp,
+    city: formData.city,
+    package: formData.package,
+    message: formData.message,
+    reply_to: formData.whatsapp
+  }).then(() => {
+    btn.textContent = '✓ Request Sent! We\'ll contact you within 2 hours.';
+    btn.style.background = '#4CAF50';
+    btn.style.color = '#fff';
+    form.reset();
+  }).catch((error) => {
+    btn.textContent = 'Error sending. Try again.';
+    btn.style.background = '#FF6B6B';
+    btn.disabled = false;
+    console.error('EmailJS error:', error);
+  });
+}
+
+// NAV SMOOTH LINKS
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+</body>
+</html>
